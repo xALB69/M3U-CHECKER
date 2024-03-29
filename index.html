@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checker</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&family=Outfit:wght@100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Outfit;
+        }
+
+        body {
+            width: 100%;
+            min-height: 100vh;
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(background.avif);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: scroll;
+        }
+
+        .container {
+            width: 80%;
+            min-height: 100vh;
+            margin: 0 auto;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        .title h1 {
+            font-size: max(3vw, 30px);
+            color: white;
+            margin-top: 100px;
+
+        }
+
+        .form-inline {
+            margin-top: 20px;
+        }
+
+        .info-container {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: white;
+            font-size: 18px;
+        }
+
+        .info-label:nth-child(even) {
+            color: rgb(62, 200, 255);
+        }
+
+        .info-label:nth-child(odd) {
+            color: rgb(250, 69, 196);
+        }
+
+        .info-color {
+            color: white;
+            font-size: 15px;
+            margin-left: 5px;
+        }
+
+        #output-results>div>p>span:nth-child(2) {
+            color: greenyellow;
+        }
+
+        .camuflado {
+            color: #5bc0de;
+        }
+
+        .erro {
+            color: red;
+        }
+
+        .separador {
+            margin-top: 10px;
+        }
+
+        #output-results {
+            width: 80%;
+            text-align: left;
+        }
+
+        .progress-container {
+            width: 80%;
+            margin-top: 20px;
+        }
+
+        .progress {
+            height: 25px;
+        }
+
+        #inputBusca {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #entrar {
+            width: 100%;
+        }
+
+        #canal-encontrado {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        @media (max-width:650px) {
+            .progress-container {
+                width: 100%;
+            }
+
+            #output-results {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="title">
+            <h1>Check Link M3u</h1>
+        </div>
+
+        <form class="form-inline" id="busca-container">
+            <div class="input-group">
+                <input type="text" class="form-control" id="linkLista" placeholder="Enter a M3U URL"
+                    aria-label="Digite a URL" aria-describedby="basic-addon2">
+                <div class="input-group-append">
+                    <button type="button" class="btn btn-primary" id="entrar">Enter</button>
+                </div>
+            </div>
+        </form>
+        <div id="resultados-container">
+            <!-- Resultados serão exibidos aqui -->
+        </div>
+        <div id="output-results">
+            <!-- Saída dos resultados -->
+        </div>
+
+        <div id="progress-container" class="progress-container" style="display: none;">
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar" role="progressbar"
+                    style="width: 0%; background-color: #5bc0de;" aria-valuenow="0" aria-valuemin="0"
+                    aria-valuemax="100">0%</div>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById("entrar").addEventListener("click", async function () {
+                var linksDigitados = document.getElementById("linkLista").value.split('\n');
+                var liveStreamCount = 0;
+                var seriesCount = 0;
+                var vodStreamsCount = 0;
+
+                document.getElementById("output-results").innerHTML = ""; // Limpa os resultados anteriores
+                document.getElementById("progress-container").style.display = 'block';
+
+                var inicioSolicitacao = new Date();
+
+                for (let i = 0; i < linksDigitados.length; i++) {
+                    const linkDigitado = linksDigitados[i];
+
+                    if (linkDigitado.trim() !== "") {
+                        var infoApiDiv = document.createElement("div");
+                        infoApiDiv.classList.add("info-container");
+
+                        try {
+                            var url = new URL(linkDigitado);
+                            var params = new URLSearchParams(url.search);
+                            var usuario = params.get("username");
+                            var senha = params.get("password");
+
+                            if (usuario && senha) {
+                                var host = url.hostname;
+                                var porta = url.port || '';
+
+                                var linkConstruido = "http://" + host + (porta ? ":" + porta : "") +
+                                    "/player_api.php?username=" + usuario + "&password=" + senha;
+
+                                var linkLiveStreams = linkConstruido + "&action=get_live_streams";
+                                var linkSeries = linkConstruido + "&action=get_series";
+                                var linkVodStreams = linkConstruido + "&action=get_vod_streams";
+
+                                var response = await axios.get(linkConstruido);
+                                var data = response.data;
+
+                                var liveStreamsResponse = await axios.get(linkLiveStreams);
+                                var liveStreamsData = liveStreamsResponse.data;
+
+                                var seriesResponse = await axios.get(linkSeries);
+                                var seriesData = seriesResponse.data;
+
+                                var vodStreamsResponse = await axios.get(linkVodStreams);
+                                var vodStreamsData = vodStreamsResponse.data;
+
+                                if (data.user_info && data.user_info.status === "Active") {
+                                    var userInfo = data.user_info;
+                                    var serverInfo = data.server_info;
+
+
+
+                                    var linksConstruidos = userInfo.allowed_output_formats.map(format => {
+                                        return `<a href="${linkConstruido}&format=${format}" target="_blank">${format}</a>`;
+                                    }).join(" | ");
+
+                                    var infoElement = document.createElement("p");
+                                    infoElement.innerHTML =
+
+                                        `<span class="info-label">📂 Status:</span><span class="info-color"> ${userInfo.status}</span><br>` +
+                                        `<span class="info-label">📂 User:</span> <span class="info-color">${usuario}</span><br>` +
+                                        `<span class="info-label">📂 Password:</span> <span class="info-color">${senha}</span><br>` +
+                                        `<span class="info-label">📂 Creation date :</span> <span class="info-color">${new Date(userInfo.created_at * 1000).toLocaleString()}</span><br>` +
+                                        `<span class="info-label">📂 Expiration date :</span> <span class="info-color">${new Date(userInfo.exp_date * 1000).toLocaleString()}</span><br>` +
+                                        `<span class="info-label">📂 Maximum connections:</span> <span class="info-color">${userInfo.max_connections}</span><br>` +
+                                        `<span class="info-label">📂 Active Connections:</span> <span class="info-color">${userInfo.active_cons}</span><br>` +
+                                        `<span class="info-label">📂 Host:</span> <span class="info-color">${serverInfo.url}</span><br>` +
+                                        `<span class="info-label">📂 Port:</span> <span class="info-color">${serverInfo.port}</span><br>` +
+                                        `<span class="info-label">📂 Port HTTPS:</span> <span class="info-color">${serverInfo.https_port}</span><br>` +
+                                        `<span class="info-label">📂 Protocol:</span> <span class="info-color">${serverInfo.server_protocol}</span><br>` +
+                                        `<span class="info-label">📂 Port RTMP:</span> <span class="info-color">${serverInfo.rtmp_port}</span><br>` +
+                                        `<span class="info-label">📂 Current time:</span> <span class="info-color">${serverInfo.time_now}</span><br>` +
+                                        `<span class="info-label">📂 Access:</span> <a href="http://${host}/client_area/index.php?username=${usuario}&password=${senha}&submit" target="_blank">Entrar 🔛</a><br>` +
+                                        `<span class="info-label">📂 List format👇:</span><br>` +
+                                        `<span class="info-label">📂 Links:</span> <span class="info-color">${linksConstruidos}</span><br>` +
+                                        `<span class="info-label">📂 Timezone:</span> <span class="info-color">${serverInfo.timezone || 'N/A'}</span>`;
+
+                                    if (liveStreamsData) {
+                                        infoElement.innerHTML += `<br><span class="info-label">📂 Live Stream:</span> <span class="info-color">${liveStreamsData.length} </span?`;
+                                        liveStreamCount += liveStreamsData.length;
+                                    }
+
+                                    if (seriesData) {
+                                        infoElement.innerHTML += `<br><span class="info-label">📂 Series:</span> <span class="info-color">${seriesData.length} </span?`;
+                                        seriesCount += seriesData.length;
+                                    }
+
+                                    if (vodStreamsData) {
+                                        infoElement.innerHTML += `<br><span class="info-label">📂 VOD Streams:</span> <span class="info-color">${vodStreamsData.length} </span?`;
+                                        vodStreamsCount += vodStreamsData.length;
+                                    }
+
+
+                                    var infoApiDiv = document.createElement("div");
+                                    infoApiDiv.classList.add("info-container");
+                                    infoApiDiv.appendChild(infoElement);
+                                    document.getElementById("output-results").appendChild(infoApiDiv);
+                                } else {
+                                    var erroElement = document.createElement("p");
+                                    erroElement.innerHTML = `<span class="info-label erro">❌ Error: No information found or account inactive.</span>`;
+                                    infoApiDiv.appendChild(erroElement);
+                                }
+                            }
+                        } catch (error) {
+                            var erroElement = document.createElement("p");
+                            erroElement.innerHTML = `<span class="info-label erro">❌ Error: Unable to complete request.</span>`;
+                            infoApiDiv.appendChild(erroElement);
+                        }
+
+
+
+                        // Atualiza a barra de progresso
+                        var progresso = ((i + 1) / linksDigitados.length) * 100;
+                        document.getElementById("progress-bar").style.width = progresso + "%";
+                        document.getElementById("progress-bar").innerHTML = Math.round(progresso) + "%";
+                    }
+                }
+
+                // Calcula o tempo de solicitação
+                var fimSolicitacao = new Date();
+                var tempoSolicitacao = (fimSolicitacao - inicioSolicitacao) / 1000; // em segundos
+
+                // Atualiza os contadores
+                document.getElementById("liveStreamCounter").innerHTML = `Live Stream: ${liveStreamCount}`;
+                document.getElementById("seriesCounter").innerHTML = `Series: ${seriesCount}`;
+                document.getElementById("vodStreamsCounter").innerHTML = `VOD Streams: ${vodStreamsCount}`;
+
+                // Esconde a barra de progresso
+                document.getElementById("progress-container").style.display = 'none';
+            });
+        </script>
+    </div>
+</body>
+
+</html>
